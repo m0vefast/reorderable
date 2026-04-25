@@ -1,4 +1,7 @@
 import SwiftUI
+import os.log
+
+private let reorderLog = Logger(subsystem: "reorderable", category: "drag")
 
 /// A view that arranges its subviews in a line and allows reordering of its elements by drag and dropping.
 ///
@@ -98,7 +101,13 @@ package struct ReorderableStack<Axis: ContainerAxis, Data: RandomAccessCollectio
           dragCoordinatesSpaceName: coordinateSpaceName,
           isEnabled: !dragDisabled))
         .onDisappear {
-          positions.removeValue(forKey: datum.id)
+          // Only remove positions for items actually deleted from data.
+          // Do NOT clear on fold/hide — onPreferenceChange won't re-fire
+          // on re-appear (SwiftUI caches preference values), leaving the
+          // positions dictionary empty and breaking intersection checks.
+          if !dataKeys.contains(datum.id) {
+            positions.removeValue(forKey: datum.id)
+          }
         }
         .sensoryFeedback(trigger: currentIndex) { old, new in
           guard !feedbackDisabled else { return nil }
@@ -233,6 +242,7 @@ package struct ReorderableStack<Axis: ContainerAxis, Data: RandomAccessCollectio
   }
 
   private func dragCallback(_ stackDrag: DragGesture.Value, _ scrollDrag: DragGesture.Value, _ datum: Data.Element) {
+    reorderLog.error("dragCB id=\(String(describing: datum.id)) pos=\(self.positions.count)/\(self.data.count) dy=\(Axis.project(size: stackDrag.translation))")
 
     if (scrollViewDragLocation == nil) {
       scrollViewDragLocation = Axis.project(point: scrollDrag.location)
@@ -246,11 +256,12 @@ package struct ReorderableStack<Axis: ContainerAxis, Data: RandomAccessCollectio
     } else {
       displayOffset = clampedDisplayOffset(rawOffset, for: datum)
     }
-    
+
     currentIndex = data.firstIndex(where: { $0.id == datum.id })
     if (dragging == nil) {
       dragging = datum.id
       initialIndex = currentIndex
+      reorderLog.error("START id=\(String(describing: datum.id)) idx=\(String(describing: self.currentIndex))")
     }
     
     checkIntersection(position: Axis.project(point: stackDrag.location), dragged: datum.id)
@@ -306,6 +317,7 @@ package struct ReorderableStack<Axis: ContainerAxis, Data: RandomAccessCollectio
   }
   
   private func dropCallback(_ drag: DragGesture.Value, _ datum: Data.Element) {
+    reorderLog.error("DROP id=\(String(describing: datum.id))")
     scrollTask?.cancel()
     scrollTask = nil
     
