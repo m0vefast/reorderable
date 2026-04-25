@@ -75,6 +75,8 @@ package struct ReorderableStack<Axis: ContainerAxis, Data: RandomAccessCollectio
   @Environment(\.dragDisabled) private var dragDisabled: Bool
   
   @Environment(\.disableSensoryFeedback) private var feedbackDisabled: Bool
+
+  @Environment(\.clampToBounds) private var clampToBounds: Bool
   
   /// Timer used to continually scroll when dragging an element close to the top. We use this rather than an animation because SwiftUI doesn't allow configuring the `ContentOffsetChanged` animation.
   @State private var scrollTask: Task<Void, Never>?
@@ -216,6 +218,7 @@ package struct ReorderableStack<Axis: ContainerAxis, Data: RandomAccessCollectio
   
   /// Clamp displayOffset so the dragged item cannot leave the list bounds.
   private func clampedDisplayOffset(_ rawOffset: CGFloat, for datum: Data.Element) -> CGFloat {
+    guard clampToBounds else { return rawOffset }
     guard let draggedPos = positions[datum.id] else { return rawOffset }
     let allPositions = positions.filter { positionIsValid($0.key) }
     guard !allPositions.isEmpty else { return rawOffset }
