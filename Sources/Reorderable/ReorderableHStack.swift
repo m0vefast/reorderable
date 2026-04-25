@@ -50,6 +50,7 @@ public struct ReorderableHStack<Data: RandomAccessCollection, Content: View>: Vi
   }
 }
 
+#if os(iOS)
 private struct Sample: Identifiable {
   var color: UIColor
   var id: UUID = UUID()
@@ -282,3 +283,4 @@ private struct Sample: Identifiable {
     .padding()
   }
 }
+#endif
