@@ -214,24 +214,34 @@ package struct ReorderableStack<Axis: ContainerAxis, Data: RandomAccessCollectio
     }
   }
   
+  /// Clamp displayOffset so the dragged item cannot leave the list bounds.
+  private func clampedDisplayOffset(_ rawOffset: CGFloat, for datum: Data.Element) -> CGFloat {
+    guard let draggedPos = positions[datum.id] else { return rawOffset }
+    let allPositions = positions.filter { positionIsValid($0.key) }
+    guard !allPositions.isEmpty else { return rawOffset }
+    let listMin = allPositions.values.map(\.min).min() ?? 0
+    let listMax = allPositions.values.map(\.max).max() ?? 0
+    let itemMin = draggedPos.min + rawOffset + positionOffset
+    let itemMax = draggedPos.max + rawOffset + positionOffset
+    var clamped = rawOffset
+    if itemMin < listMin { clamped = rawOffset + (listMin - itemMin) }
+    if itemMax > listMax { clamped = rawOffset + (listMax - itemMax) }
+    return clamped
+  }
+
   private func dragCallback(_ stackDrag: DragGesture.Value, _ scrollDrag: DragGesture.Value, _ datum: Data.Element) {
 
     if (scrollViewDragLocation == nil) {
       scrollViewDragLocation = Axis.project(point: scrollDrag.location)
     }
 
+    let rawOffset = Axis.project(size: stackDrag.translation)
     if (scrollTask != nil) {
-      // There is some jiggling that happens when scrolling due
-      // to some drag events firing in a weird order with the scroll
-      // timer. This isn't perfect but it's good enough for now.
-      //
-      // (Basically, make sure the user moved in the Y Axis to move
-      // the offset at all.
       if (abs(scrollViewDragLocation! - Axis.project(point: scrollDrag.location)) > 0.0) {
-        displayOffset = Axis.project(size: stackDrag.translation)
+        displayOffset = clampedDisplayOffset(rawOffset, for: datum)
       }
     } else {
-      displayOffset = Axis.project(size: stackDrag.translation)
+      displayOffset = clampedDisplayOffset(rawOffset, for: datum)
     }
     
     currentIndex = data.firstIndex(where: { $0.id == datum.id })
