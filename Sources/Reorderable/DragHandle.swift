@@ -38,9 +38,7 @@ struct DragHandleViewModifier: ViewModifier {
   func body(content: Content) -> some View {
     content
       .onPreferenceChange(HasDragHandlePreferenceKey.self) { val in
-        Task { @MainActor in
-          alreadyHasDragHandle = val
-        }
+        alreadyHasDragHandle = val
       }
       .gesture(
         SimultaneousGesture(
